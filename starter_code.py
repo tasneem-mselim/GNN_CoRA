@@ -4,18 +4,13 @@ import pandas as pd
 import tensorflow as tf
 
 DATA_DIR = "" 
-TEST_SUBMISSION_PATH = ""  # predictions file
-
+TEST_SUBMISSION_PATH = "" 
 EDGE_PATH = os.path.join("edge_index.csv")
 X_PATH = os.path.join("x.csv")
 YTR_PATH = os.path.join("y_train.csv")
 YVA_PATH = os.path.join("y_val.csv")
 OUT_PATH ="TEST_SUBMISSION_PATH"
 
-
-# -----------------
-# seed = 25
-# -----------------
 SEED = 25
 os.environ["PYTHONHASHSEED"] = str(SEED)
 random.seed(SEED)
@@ -23,28 +18,15 @@ np.random.seed(SEED)
 tf.random.set_seed(SEED)
 
 
-# -----------------
-# load x
-# -----------------
 X = pd.read_csv(X_PATH).to_numpy(dtype=np.float32)  # (N,F)
 N, F = X.shape
 
-# -----------------
-# load edges: source,target
-# -----------------
 e = pd.read_csv(EDGE_PATH)
 src = e["source"].to_numpy(dtype=np.int64)
 dst = e["target"].to_numpy(dtype=np.int64)
 
-# if your edges are 1-based, uncomment:
-# src -= 1; dst -= 1
-
 good = (src >= 0) & (src < N) & (dst >= 0) & (dst < N)
 src, dst = src[good], dst[good]
-
-# -----------------
-# load labels: index,label
-# -----------------
 tr = pd.read_csv(YTR_PATH)
 va = pd.read_csv(YVA_PATH)
 
@@ -54,8 +36,10 @@ tr_y   = tr["label"].to_numpy(dtype=np.int64)
 va_idx = va["index"].to_numpy(dtype=np.int64)
 va_y   = va["label"].to_numpy(dtype=np.int64)
 
+# number of classes
 C = int(max(tr_y.max(initial=0), va_y.max(initial=0))) + 1
 
+# build one-hot labels for all nodes + masks
 Y = np.zeros((N, C), dtype=np.float32)
 train_mask = np.zeros((N,), dtype=np.float32)
 val_mask   = np.zeros((N,), dtype=np.float32)
@@ -65,10 +49,6 @@ train_mask[tr_idx] = 1.0
 
 Y[va_idx, va_y] = 1.0
 val_mask[va_idx] = 1.0
-
-# -----------------
-# build normalized adjacency A_hat = D^-1/2 (A_undirected + I) D^-1/2
-# -----------------
 row = np.concatenate([src, dst, np.arange(N, dtype=np.int64)])
 col = np.concatenate([dst, src, np.arange(N, dtype=np.int64)])
 val = np.ones_like(row, dtype=np.float32)
@@ -92,9 +72,7 @@ A_hat = tf.sparse.SparseTensor(
 )
 A_hat = tf.sparse.reorder(A_hat)
 
-# -----------------
-# 2-layer GCN (Keras Functional, no custom classes)
-# -----------------
+
 X_in = tf.keras.Input(shape=(F,), name="X")
 A_in = tf.keras.Input(shape=(None,), sparse=True, name="A_hat")
 
@@ -102,12 +80,7 @@ def spmm(inputs):
     h, a = inputs
     return tf.sparse.sparse_dense_matmul(a, h)
 
-# Keras 3: give output_shape so it can infer it
-propagate = tf.keras.layers.Lambda(
-    spmm,
-    output_shape=lambda input_shapes: input_shapes[0],
-    name="propagate",
-)
+propagate = tf.keras.layers.Lambda(spmm, output_shape=lambda input_shapes: input_shapes[0], name="propagate")
 
 h = tf.keras.layers.Dense(16, use_bias=False)(X_in)
 h = propagate([h, A_in])
@@ -115,7 +88,7 @@ h = tf.keras.layers.Activation("relu")(h)
 h = tf.keras.layers.Dropout(0.5, seed=SEED)(h)
 
 h = tf.keras.layers.Dense(C, use_bias=False)(h)
-# h = propagate([h, A_in])
+h = propagate([h, A_in])
 out = tf.keras.layers.Activation("softmax")(h)
 
 model = tf.keras.Model([X_in, A_in], out)
@@ -128,21 +101,21 @@ model.compile(
 model.fit(
     x=[X, A_hat],
     y=Y,
-    sample_weight=train_mask,
-    validation_data=([X, A_hat], Y, val_mask),
+    sample_weight=train_mask,                  # train loss on train nodes only
+    validation_data=([X, A_hat], Y, val_mask), # val metrics on val nodes only
     epochs=5,
-    batch_size=N,
+    batch_size=N,                             
     verbose=2,
 )
 
-# -----------------
-# predict + save
-# -----------------
 proba = model.predict([X, A_hat], batch_size=N, verbose=0)
 pred = proba.argmax(axis=1).astype(np.int64)
 
-pd.DataFrame({"index": np.arange(N, dtype=np.int64), "pred": pred}).to_csv(OUT_PATH, index=False)
-print("Saved:", OUT_PATH)
+test_ids = pd.read_csv(TESTID_PATH)["id"].to_numpy(dtype=np.int64)
+sub = pd.DataFrame({"id": test_ids, "target": pred[test_ids]})
+sub.to_csv(SUB_PATH, index=False)
+print("Saved submission:", SUB_PATH)
 
+# quick val accuracy (post-hoc)
 val_acc = (pred[va_idx] == va_y).mean()
 print(f"Val accuracy (post-hoc): {val_acc:.4f}")
