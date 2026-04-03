@@ -4,6 +4,10 @@
 
 This repository hosts the **Cora Node Classification Challenge**, a graph machine learning competition based on the **Cora citation network**. Participants are required to design and train **Graph Neural Network (GNN)** models to classify scientific papers into research topics using node features and graph structure.
 
+## Difficulty level
+This implementation does not follow the standard Cora benchmark. To increase task difficulty, Gaussian noise (σ = 0.4) has been applied to the node features.
+
+
 ## 🏆 Leaderboard
 - Leaderboard scores are automatically updated based on accuracy.
 - View the live leaderboard:  
