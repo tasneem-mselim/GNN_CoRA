@@ -115,7 +115,3 @@ test_ids = pd.read_csv(TESTID_PATH)["id"].to_numpy(dtype=np.int64)
 sub = pd.DataFrame({"id": test_ids, "target": pred[test_ids]})
 sub.to_csv(SUB_PATH, index=False)
 print("Saved submission:", SUB_PATH)
-
-# quick val accuracy (post-hoc)
-val_acc = (pred[va_idx] == va_y).mean()
-print(f"Val accuracy (post-hoc): {val_acc:.4f}")
