@@ -54,7 +54,7 @@ The dataset is derived from the **Cora citation network**.
 
 ### Public Files:
 
-###### These files are available in the data/ folder for participants:
+##### These files are available in the data/ folder for participants:
 
 1- edge_index.csv — edges between nodes
 
