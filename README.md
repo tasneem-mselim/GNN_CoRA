@@ -57,6 +57,8 @@ y_train.csv — labels for the training nodes
 
 y_val.csv — labels for validation nodes
 
+test_ID _ id of testing nodes
+
 
 ### Private Files:
 - Test_label → Hidden ground-truth data used for automatic evaluation  
