@@ -50,8 +50,11 @@ The dataset is derived from the **Cora citation network**.
 These files are available in the data/ folder for participants:
 
 edge_index.csv — adjacency information of the graph (edges between nodes)
+
 x.csv — node features
+
 y_train.csv — labels for the training nodes
+
 y_val.csv — labels for validation nodes
 
 
